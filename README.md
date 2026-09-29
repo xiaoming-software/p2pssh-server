@@ -4,6 +4,8 @@
 
 客户端请使用 [File2File](https://github.com/xiaoming-software/File2File-Desktop) 桌面端「P2P SSH」连接。
 
+![File2File 桌面端通过 P2P SSH 连接本服务端的使用截图](img/p2pssh.png)
+
 ## 两种通道
 
 | 模式 | 触发 | 作用 |

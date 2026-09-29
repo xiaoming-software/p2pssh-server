@@ -4,6 +4,8 @@ webrpc-based **P2P SSH port-forward server**. It only forwards tunnel traffic to
 
 Use the [File2File](https://github.com/xiaoming-software/File2File-Desktop) desktop app “P2P SSH” feature as the client.
 
+![Screenshot: File2File Desktop connected via P2P SSH to this server](img/p2pssh.png)
+
 ## Requirements
 
 - Go 1.22+

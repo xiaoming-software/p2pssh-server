@@ -1,16 +1,21 @@
-//go:build darwin && cgo
+//go:build darwin || linux
 
 package ptyutil
 
 import (
 	"bytes"
 	"os/exec"
+	"runtime"
 	"testing"
 	"time"
 )
 
 func TestStartWithSize(t *testing.T) {
-	cmd := exec.Command("/bin/zsh", "-c", "printf HELLO_PTY")
+	shell := "/bin/bash"
+	if runtime.GOOS == "darwin" {
+		shell = "/bin/zsh"
+	}
+	cmd := exec.Command(shell, "-c", "printf HELLO_PTY")
 	f, err := StartWithSize(cmd, 24, 80)
 	if err != nil {
 		t.Fatal(err)

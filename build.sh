@@ -1,5 +1,6 @@
 #!/bin/sh
 # 编译各平台单文件可执行程序（webrpc 动态库从 sdk/ 嵌入，dist 无需再附带 .so/.dylib/.dll）
+# shell PTY 使用纯 Go（creack/pty），全程 CGO_ENABLED=0，可在 macOS 上交叉编译 linux。
 set -e
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -32,10 +33,9 @@ go_build() {
   goos=$1
   goarch=$2
   outfile=$3
-  cgo=$4
   export GOOS="$goos"
   export GOARCH="$goarch"
-  export CGO_ENABLED="$cgo"
+  export CGO_ENABLED=0
   unset CC
   go build -trimpath -ldflags="-s -w" -o "$outfile" .
 }
@@ -44,14 +44,8 @@ build_darwin_arm64() {
   prepare_embed darwin_arm64 "${SDK_DIR}/libwebrpc-Mac.dylib" libwebrpc.dylib
   out="${DIST_DIR}/darwin-arm64/p2pssh-server"
   mkdir -p "${DIST_DIR}/darwin-arm64"
-  log "build darwin/arm64 (cgo=1, shell PTY)"
-  # Native mac build: enable cgo so in-app shell PTY works.
-  if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
-    go_build darwin arm64 "$out" 1
-  else
-    warn "非本机 darwin/arm64，将以 cgo=0 编译（无 shell PTY，仅 tcp 转发）"
-    go_build darwin arm64 "$out" 0
-  fi
+  log "build darwin/arm64 (shell PTY, cgo=0)"
+  go_build darwin arm64 "$out"
 }
 
 build_linux() {
@@ -69,17 +63,8 @@ build_linux() {
   esac
   outdir="${DIST_DIR}/linux-${arch}"
   mkdir -p "$outdir"
-  # Prefer native linux+cgo when possible; cross builds stay cgo=0 (tcp-only).
-  cgo=0
-  if [ "$(uname -s)" = "Linux" ]; then
-    host_arch=$(uname -m)
-    if { [ "$arch" = "amd64" ] && [ "$host_arch" = "x86_64" ]; } || \
-       { [ "$arch" = "arm64" ] && [ "$host_arch" = "aarch64" ]; }; then
-      cgo=1
-    fi
-  fi
-  log "build linux/${arch} (cgo=${cgo})"
-  go_build linux "$arch" "${outdir}/p2pssh-server" "$cgo"
+  log "build linux/${arch} (shell PTY, cgo=0)"
+  go_build linux "$arch" "${outdir}/p2pssh-server"
 }
 
 build_windows_amd64() {
@@ -87,7 +72,7 @@ build_windows_amd64() {
   out="${DIST_DIR}/windows-amd64/p2pssh-server.exe"
   mkdir -p "${DIST_DIR}/windows-amd64"
   log "build windows/amd64 (tcp only)"
-  go_build windows amd64 "$out" 0
+  go_build windows amd64 "$out"
 }
 
 rm -rf "$DIST_DIR"

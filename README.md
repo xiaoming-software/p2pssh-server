@@ -17,7 +17,7 @@
 
 ## 依赖
 
-- Go 1.22+（darwin/linux 需 cgo 以创建 PTY）
+- Go 1.22+（darwin/linux 的 shell PTY 为纯 Go，可在 macOS 上交叉编译）
 - webrpc token / 密码 / 口令
 - **tcp 模式**才需要本机 `sshd`；仅用应用内终端时不必开 SSH
 
@@ -28,14 +28,14 @@ chmod +x build.sh
 ./build.sh
 ```
 
-产物在 `dist/`：
+全程 `CGO_ENABLED=0`。产物在 `dist/`：
 
 | 平台 | 路径 |
 |------|------|
-| macOS arm64 | `dist/darwin-arm64/p2pssh-server` |
-| Linux amd64 | `dist/linux-amd64/p2pssh-server` |
-| Linux arm64 | `dist/linux-arm64/p2pssh-server` |
-| Windows amd64 | `dist/windows-amd64/p2pssh-server.exe`（仅 tcp 转发；shell PTY 请用 Linux/macOS） |
+| macOS arm64 | `dist/darwin-arm64/p2pssh-server`（shell PTY） |
+| Linux amd64 | `dist/linux-amd64/p2pssh-server`（shell PTY） |
+| Linux arm64 | `dist/linux-arm64/p2pssh-server`（shell PTY） |
+| Windows amd64 | `dist/windows-amd64/p2pssh-server.exe`（仅 tcp 转发；shell 请用 Linux/macOS） |
 
 webrpc 动态库已从 `sdk/` 嵌入。
 

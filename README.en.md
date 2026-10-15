@@ -8,9 +8,9 @@ Use the [File2File](https://github.com/xiaoming-software/File2File-Desktop) desk
 
 ## Requirements
 
-- Go 1.22+
-- Local `sshd` (or point `--ssh-port` at your SSH port)
+- Go 1.22+ (shell PTY on darwin/linux is pure Go; cross-build from macOS is fine)
 - webrpc token / password / permission
+- Local `sshd` only for **tcp** mode; in-app shell does not need sshd
 
 ## Build
 
@@ -19,14 +19,14 @@ chmod +x build.sh
 ./build.sh
 ```
 
-Binaries land in `dist/`:
+Always `CGO_ENABLED=0`. Binaries land in `dist/`:
 
 | Platform | Path |
 |----------|------|
-| macOS arm64 | `dist/darwin-arm64/p2pssh-server` |
-| Linux amd64 | `dist/linux-amd64/p2pssh-server` |
-| Linux arm64 | `dist/linux-arm64/p2pssh-server` |
-| Windows amd64 | `dist/windows-amd64/p2pssh-server.exe` |
+| macOS arm64 | `dist/darwin-arm64/p2pssh-server` (shell PTY) |
+| Linux amd64 | `dist/linux-amd64/p2pssh-server` (shell PTY) |
+| Linux arm64 | `dist/linux-arm64/p2pssh-server` (shell PTY) |
+| Windows amd64 | `dist/windows-amd64/p2pssh-server.exe` (tcp forward only) |
 
 The webrpc runtime library is embedded from `sdk/`; no extra shared libraries to ship.
 

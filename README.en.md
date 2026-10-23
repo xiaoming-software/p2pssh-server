@@ -57,12 +57,20 @@ Requires `gh` installed and logged in (`brew install gh && gh auth login`).
 | `--ssh-host` | `127.0.0.1` | Local SSH host |
 | `--ssh-port` | `22` | Local SSH port |
 
-## Protocol (brief)
+## Protocol (frozen; changing behavior requires a new magic)
 
 - webrpc data magic byte `4` = P2P SSH
 - One webrpc session ↔ one client local listen port
 - Multiplex concurrent SSH connections via `channel` ids
 - Per-channel `seq` for ordered delivery
+
+**Channel ordering (client and this server must both obey):**
+
+1. Client registers receive state for `channel`, then sends `OpOpen`
+2. Server sends `OpOpenAck` only when ready, and **must not** send `OpData` before that Ack
+3. Either side may `OpClose`; further frames for that id are ignored
+
+See `internal/tunnel/protocol.go`. Ship desktop client and this server together when upgrading.
 
 ## License
 

@@ -66,13 +66,21 @@ VERSION=0.1.0 ./scripts/publish-release.sh
 | `--ssh-host` | `127.0.0.1` | tcp 模式转发地址 |
 | `--ssh-port` | `22` | tcp 模式转发端口 |
 
-## 协议概要
+## 协议概要（已冻结，改行为须换 magic）
 
 - webrpc 数据帧 magic 第 4 字节为 `4`
 - 一个 webrpc 会话对应客户端一个本地监听端口（tcp 模式）
 - `OpOpen` payload：`shell` → PTY；空/`tcp` → 拨号本机 SSH
 - `OpResize`：cols/rows 各 u16 LE（仅 shell）
 - 会话内 `channel` + `seq` 复用多路
+
+**通道时序（客户端 / 本服务必须同时遵守）：**
+
+1. 客户端先登记 `channel` 接收状态，再发 `OpOpen`
+2. 服务端资源就绪后发 `OpOpenAck`，**之后**才允许对该 channel 发 `OpData`
+3. 任一方 `OpClose` 后忽略该 channel 后续帧
+
+详情见 `internal/tunnel/protocol.go`。升级时请客户端与本服务端一起发布，避免只升一边。
 
 ## License
 

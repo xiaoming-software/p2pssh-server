@@ -8,6 +8,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // Sender sends a complete encoded frame over webrpc.
@@ -69,7 +70,8 @@ func (s *Session) HandleFrame(raw []byte) {
 	}
 	switch f.Op {
 	case OpOpen:
-		s.onOpen(f.Channel, f.Payload)
+		// Dial 必须离开回调线程，否则回调堵死时 OPEN_ACK 发不出去，对端 ssh 会卡在 banner。
+		go s.onOpen(f.Channel, f.Payload)
 	case OpData:
 		s.onData(f.Channel, f.Seq, f.Payload)
 	case OpClose:
@@ -107,11 +109,14 @@ func (s *Session) onOpen(id uint32, payload []byte) {
 	} else {
 		mode = "tcp"
 		addr := fmt.Sprintf("%s:%d", s.sshHost, s.sshPort)
-		conn, dialErr := net.Dial("tcp", addr)
+		conn, dialErr := net.DialTimeout("tcp", addr, 5*time.Second)
 		if dialErr != nil {
 			log.Printf("tcp open channel=%d dial %s failed: %v", id, addr, dialErr)
 			_ = s.send(Encode(Frame{Op: OpOpenErr, Channel: id, Payload: []byte(dialErr.Error())}))
 			return
+		}
+		if tcp, ok := conn.(*net.TCPConn); ok {
+			_ = tcp.SetNoDelay(true)
 		}
 		rw = conn
 		cleanup = func() { _ = conn.Close() }
@@ -124,6 +129,7 @@ func (s *Session) onOpen(id uint32, payload []byte) {
 		cleanup: cleanup,
 		pending: make(map[uint32][]byte),
 	}
+	// 协议：先入 map 并成功发出 OpOpenAck，之后才允许 OpData（见 protocol.go）。
 	s.mu.Lock()
 	s.channels[id] = ch
 	s.mu.Unlock()
@@ -133,7 +139,7 @@ func (s *Session) onOpen(id uint32, payload []byte) {
 		s.removeChannel(id)
 		return
 	}
-	log.Printf("channel=%d opened mode=%s", id, mode)
+	log.Printf("channel=%d opened mode=%s addr=%s:%d", id, mode, s.sshHost, s.sshPort)
 	go s.pipeLocal(ch)
 }
 
@@ -173,6 +179,7 @@ func (s *Session) onData(id uint32, seq uint32, payload []byte) {
 		ch.mu.Unlock()
 		if len(p) > 0 {
 			if _, err := ch.rw.Write(p); err != nil {
+				log.Printf("DATA write channel=%d failed: %v", id, err)
 				s.closeChannel(ch, true)
 				return
 			}
@@ -220,6 +227,7 @@ func (s *Session) closeChannel(ch *channel, notify bool) {
 }
 
 func (s *Session) pipeLocal(ch *channel) {
+	// 仅由 onOpen 在 OpOpenAck 发送成功之后启动。
 	buf := make([]byte, 32*1024)
 	for {
 		n, err := ch.rw.Read(buf)
@@ -228,6 +236,7 @@ func (s *Session) pipeLocal(ch *channel) {
 			payload := make([]byte, n)
 			copy(payload, buf[:n])
 			if err := s.send(Encode(Frame{Op: OpData, Channel: ch.id, Seq: seq, Payload: payload})); err != nil {
+				log.Printf("DATA out send channel=%d failed: %v", ch.id, err)
 				s.closeChannel(ch, false)
 				return
 			}
